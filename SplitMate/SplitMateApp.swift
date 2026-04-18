@@ -9,9 +9,13 @@ import SwiftUI
 
 @main
 struct SplitMateApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @State private var sessionStore = SessionStore()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppRootView()
+                .environment(sessionStore)
         }
     }
 }
