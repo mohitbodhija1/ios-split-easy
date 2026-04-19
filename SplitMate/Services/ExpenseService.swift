@@ -77,6 +77,45 @@ struct ExpenseService {
             _ = try await client.from("pending_splits").insert(pendingSplitRows).execute()
         }
     }
+
+    func settleUp(
+        groupId: UUID,
+        payerId: UUID,
+        receiverId: UUID,
+        amount: Double
+    ) async throws {
+        let date = String(ISO8601DateFormatter().string(from: Date()).prefix(10))
+        try await addExpense(
+            groupId: groupId,
+            paidBy: payerId,
+            description: "Settle Up",
+            amount: amount,
+            expenseDate: date,
+            splits: [(userId: receiverId, amount: amount)],
+            pendingSplits: []
+        )
+    }
+
+    func settleUpPending(
+        groupId: UUID,
+        recorderId: UUID,
+        pendingInviteId: UUID,
+        amount: Double
+    ) async throws {
+        let date = String(ISO8601DateFormatter().string(from: Date()).prefix(10))
+        // To avoid expenses_amount_check (amount > 0), we use the actual settlement amount.
+        // We record that the recorder paid 'amount', but we assign a negative split to the pending friend.
+        // This transfers the balance correctly while keeping the expense amount positive.
+        try await addExpense(
+            groupId: groupId,
+            paidBy: recorderId,
+            description: "Settle Up",
+            amount: amount,
+            expenseDate: date,
+            splits: [(userId: recorderId, amount: 2 * amount)],
+            pendingSplits: [(pendingInviteId: pendingInviteId, amount: -amount)]
+        )
+    }
 }
 
 enum ExpenseServiceError: LocalizedError {

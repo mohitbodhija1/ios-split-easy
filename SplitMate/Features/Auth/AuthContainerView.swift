@@ -167,21 +167,24 @@ private struct SignInFieldsStyled: View {
             .disabled(email.isEmpty || password.isEmpty || busy)
             .opacity(email.isEmpty || password.isEmpty || busy ? 0.45 : 1)
 
-            HStack(spacing: 10) {
-                Rectangle()
-                    .fill(SplitMateTheme.separator)
-                    .frame(height: 0.5)
-                Text("or continue with")
-                    .font(.system(size: 12))
-                    .foregroundStyle(SplitMateTheme.labelSecondary)
-                Rectangle()
-                    .fill(SplitMateTheme.separator)
-                    .frame(height: 0.5)
-            }
-            .padding(.vertical, 14)
+            // Connect with Google / Apple — set to `true` when OAuth is wired to Supabase.
+            if false {
+                HStack(spacing: 10) {
+                    Rectangle()
+                        .fill(SplitMateTheme.separator)
+                        .frame(height: 0.5)
+                    Text("or continue with")
+                        .font(.system(size: 12))
+                        .foregroundStyle(SplitMateTheme.labelSecondary)
+                    Rectangle()
+                        .fill(SplitMateTheme.separator)
+                        .frame(height: 0.5)
+                }
+                .padding(.vertical, 14)
 
-            socialPlaceholderGoogleButton()
-            socialPlaceholderButton(title: "Continue with Apple", systemImage: "apple.logo", dark: true)
+                socialPlaceholderGoogleButton()
+                socialPlaceholderButton(title: "Continue with Apple", systemImage: "apple.logo", dark: true)
+            }
 
             HStack(spacing: 4) {
                 Text("Don't have an account?")

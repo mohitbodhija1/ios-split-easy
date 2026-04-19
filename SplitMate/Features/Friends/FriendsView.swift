@@ -47,11 +47,8 @@ struct FriendsView: View {
                     }
                     searchBar
                     if !incoming.isEmpty {
-                        pendingRequestsBanner
-                    }
-                    if !incoming.isEmpty {
-                        sectionLabel("Requests")
-                        requestsCard
+                        incomingRequestsSummaryCard
+                        incomingRequestsActionsCard
                     }
                     if !pendingInvites.isEmpty {
                         sectionLabel("Pending friends")
@@ -102,36 +99,44 @@ struct FriendsView: View {
     }
 
     private var headerRow: some View {
-        HStack(alignment: .top) {
-            Text("Friends")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(SplitMateTheme.labelPrimary)
-                .tracking(-0.5)
-            Spacer()
-            Button {
-                showingAddFriendSheet = true
-            } label: {
-                Image(systemName: "person.badge.plus")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(SplitMateTheme.brandPurple)
-                    .frame(width: 36, height: 36)
-                    .background(Circle().fill(Color.white))
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                Text("Friends")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(SplitMateTheme.labelPrimary)
+                    .tracking(-0.5)
+                Spacer()
+                Button {
+                    showingAddFriendSheet = true
+                } label: {
+                    Image(systemName: "person.badge.plus")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(SplitMateTheme.brandPurple)
+                        .frame(width: 36, height: 36)
+                        .background(Circle().fill(Color.white))
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            Color.clear.frame(height: 12)
         }
         .padding(.horizontal, 18)
         .padding(.top, 8)
-        .padding(.bottom, 12)
     }
 
     private var searchBar: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
+            Text("🔍")
                 .font(.system(size: 14))
-                .foregroundStyle(SplitMateTheme.labelSecondary.opacity(0.55))
-            TextField("Search friends...", text: $searchQuery)
-                .font(.system(size: 14))
-                .foregroundStyle(SplitMateTheme.labelPrimary)
+                .opacity(0.35)
+            TextField(
+                "",
+                text: $searchQuery,
+                prompt: Text("Search friends...")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color(red: 174 / 255, green: 174 / 255, blue: 178 / 255))
+            )
+            .font(.system(size: 14))
+            .foregroundStyle(SplitMateTheme.labelPrimary)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -143,10 +148,11 @@ struct FriendsView: View {
         .padding(.bottom, 14)
     }
 
-    private var pendingRequestsBanner: some View {
+    /// Matches HTML `.req-card` (peach strip + dot + count).
+    private var incomingRequestsSummaryCard: some View {
         HStack(spacing: 10) {
             Circle()
-                .fill(SplitMateTheme.orangeAccent)
+                .fill(Color(red: 1, green: 149 / 255, blue: 0))
                 .frame(width: 8, height: 8)
             Text("\(incoming.count) pending request\(incoming.count == 1 ? "" : "s")")
                 .font(.system(size: 13, weight: .medium))
@@ -156,7 +162,7 @@ struct FriendsView: View {
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(Color.white)
                 .frame(width: 20, height: 20)
-                .background(Circle().fill(SplitMateTheme.orangeAccent))
+                .background(Circle().fill(Color(red: 1, green: 149 / 255, blue: 0)))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -178,56 +184,14 @@ struct FriendsView: View {
             .padding(.bottom, 8)
     }
 
-    private var requestsCard: some View {
+    /// White list card under `.req-card` for Accept / Decline (not in static HTML; keeps existing APIs).
+    private var incomingRequestsActionsCard: some View {
         VStack(spacing: 0) {
             ForEach(Array(incoming.enumerated()), id: \.element.id) { index, req in
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(incomingProfiles[req.fromUser]?.username ?? "User")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(SplitMateTheme.labelPrimary)
-                            Text("wants to connect")
-                                .font(.system(size: 12))
-                                .foregroundStyle(SplitMateTheme.labelSecondary)
-                        }
-                        Spacer()
-                    }
-                    HStack(spacing: 10) {
-                        Button("Decline") {
-                            Task { await respond(req, status: "rejected") }
-                        }
-                        .buttonStyle(.bordered)
-                        Button("Accept") {
-                            Task { await respond(req, status: "accepted") }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(SplitMateTheme.brandPurple)
-                    }
-                }
-                .padding(14)
+                incomingRequestRow(req: req)
                 if index < incoming.count - 1 {
                     Divider()
-                        .background(SplitMateTheme.separator.opacity(0.6))
-                        .padding(.leading, 14)
-                }
-            }
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white)
-        )
-        .padding(.horizontal, 14)
-        .padding(.bottom, 14)
-    }
-
-    private var pendingInvitesCard: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(pendingInvites.enumerated()), id: \.element.id) { index, invite in
-                pendingInviteRow(invite: invite)
-                if index < pendingInvites.count - 1 {
-                    Divider()
-                        .background(SplitMateTheme.separator.opacity(0.6))
+                        .background(Color(red: 240 / 255, green: 240 / 255, blue: 245 / 255))
                         .padding(.leading, 68)
                 }
             }
@@ -240,7 +204,77 @@ struct FriendsView: View {
         .padding(.bottom, 14)
     }
 
-    private func pendingInviteRow(invite: PendingFriendInvite) -> some View {
+    private func incomingRequestRow(req: FriendRequest) -> some View {
+        let name = incomingProfiles[req.fromUser]?.username ?? "User"
+        let initial = String(name.prefix(1)).uppercased()
+        return HStack(spacing: 12) {
+            Circle()
+                .fill(Color(red: 1, green: 149 / 255, blue: 0))
+                .frame(width: 42, height: 42)
+                .overlay(
+                    Text(initial)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(Color.white)
+                )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(SplitMateTheme.labelPrimary)
+                Text("wants to connect")
+                    .font(.system(size: 12))
+                    .foregroundStyle(SplitMateTheme.labelSecondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 8) {
+                Button("Decline") {
+                    Task { await respond(req, status: "rejected") }
+                }
+                .font(.system(size: 13, weight: .medium))
+                .buttonStyle(.bordered)
+                .tint(SplitMateTheme.labelSecondary)
+                Button("Accept") {
+                    Task { await respond(req, status: "accepted") }
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .buttonStyle(.borderedProminent)
+                .tint(SplitMateTheme.brandPurple)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+
+    private var pendingInvitesCard: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(pendingInvites.enumerated()), id: \.element.id) { index, invite in
+                pendingInviteRow(invite: invite, colorIndex: index)
+                if index < pendingInvites.count - 1 {
+                    Divider()
+                        .background(Color(red: 240 / 255, green: 240 / 255, blue: 245 / 255))
+                        .padding(.leading, 68)
+                }
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.white)
+        )
+        .padding(.horizontal, 14)
+        .padding(.bottom, 14)
+    }
+
+    private func pendingInviteAvatarColor(index: Int) -> Color {
+        let palette: [Color] = [
+            Color(red: 1, green: 149 / 255, blue: 0),
+            Color(red: 1, green: 107 / 255, blue: 107 / 255),
+            SplitMateTheme.brandPurple,
+            SplitMateTheme.positiveGreen,
+            Color(red: 0, green: 200 / 255, blue: 215 / 255)
+        ]
+        return palette[index % palette.count]
+    }
+
+    private func pendingInviteRow(invite: PendingFriendInvite, colorIndex: Int) -> some View {
         HStack(spacing: 12) {
             Button {
                 selectedPendingInviteForDetail = invite
@@ -249,7 +283,7 @@ struct FriendsView: View {
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(Color.white)
                     .frame(width: 42, height: 42)
-                    .background(Circle().fill(SplitMateTheme.orangeAccent))
+                    .background(Circle().fill(pendingInviteAvatarColor(index: colorIndex)))
             }
             .buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 2) {
@@ -268,7 +302,7 @@ struct FriendsView: View {
                 if total > 0.0001 {
                     Text("pending share \(SplitMateTheme.inrString(total))")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(SplitMateTheme.orangeAccent)
+                        .foregroundStyle(Color(red: 1, green: 149 / 255, blue: 0))
                 } else {
                     Text("No pending share yet")
                         .font(.system(size: 11))
@@ -362,11 +396,11 @@ struct FriendsView: View {
                 if abs(net) > 0.0001 {
                     Text(net > 0 ? "owes you \(SplitMateTheme.inrString(net))" : "you owe \(SplitMateTheme.inrString(-net))")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(net > 0 ? SplitMateTheme.positiveGreen : SplitMateTheme.labelSecondary)
+                        .foregroundStyle(net > 0 ? SplitMateTheme.positiveGreen : Color(red: 142 / 255, green: 142 / 255, blue: 147 / 255))
                 } else {
                     Text("Settled up")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(SplitMateTheme.positiveGreen)
+                        .foregroundStyle(Color(red: 142 / 255, green: 142 / 255, blue: 147 / 255))
                 }
             }
             Spacer(minLength: 0)
@@ -556,9 +590,8 @@ private struct FriendExpenseDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                topChrome
-                avatarBlock
-                balanceCard
+                friendDetailHero
+                Color.clear.frame(height: 12)
                 if let errorMessage {
                     Text(errorMessage)
                         .font(.subheadline)
@@ -568,12 +601,14 @@ private struct FriendExpenseDetailView: View {
                 }
                 if isLoading {
                     ProgressView("Loading…")
+                        .tint(SplitMateTheme.brandPurple)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        .padding(.vertical, 24)
+                } else {
+                    statsRow
+                    tabPicker
+                    tabContent
                 }
-                statsRow
-                tabPicker
-                tabContent
             }
             .padding(.bottom, 28)
         }
@@ -586,129 +621,160 @@ private struct FriendExpenseDetailView: View {
             }
         }
         .sheet(isPresented: $showSettleUp) {
-            FriendSettleUpSheet(friend: friend, amount: abs(netBalance), friendOwesYou: netBalance > 0.0001)
+            FriendSettleUpSheet(
+                displayName: friend.username,
+                initial: String(friend.username.prefix(1)).uppercased(),
+                avatarColor: friendHeroAvatarColor,
+                fullAmount: abs(netBalance),
+                friendOwesYou: netBalance > 0.0001,
+                onConfirm: { amount in
+                    guard let uid = sessionStore.session?.user.id else { return }
+                    let groupService = GroupService(client: sessionStore.client)
+                    let expenseService = ExpenseService(client: sessionStore.client)
+                    do {
+                        if let pair = try await groupService.pairGroup(for: uid, friendId: friend.id) {
+                            let payerId = netBalance > 0 ? friend.id : uid
+                            let receiverId = netBalance > 0 ? uid : friend.id
+                            try await expenseService.settleUp(
+                                groupId: pair.id,
+                                payerId: payerId,
+                                receiverId: receiverId,
+                                amount: amount
+                            )
+                            await load()
+                        }
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+            )
         }
         .task {
             await load()
         }
     }
 
-    private var topChrome: some View {
-        HStack {
-            Button {
-                dismiss()
-            } label: {
-                HStack(spacing: 4) {
-                    Text("‹")
-                        .font(.system(size: 18, weight: .medium))
-                    Text("Friends")
-                        .font(.system(size: 14, weight: .medium))
-                }
-                .foregroundStyle(SplitMateTheme.brandPurple)
-            }
-            .buttonStyle(.plain)
-            Spacer()
-            Button {
-                Task { await openAddExpense() }
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(SplitMateTheme.brandPurple)
-                    .frame(width: 36, height: 36)
-                    .background(Circle().fill(Color.white))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 18)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
-        .background(Color.white)
-    }
-
-    private var avatarBlock: some View {
-        VStack(spacing: 0) {
-            Text(String(friend.username.prefix(1)).uppercased())
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(Color.white)
-                .frame(width: 72, height: 72)
-                .background(Circle().fill(friendAvatarColor))
-            Text(friend.username)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(SplitMateTheme.labelPrimary)
-                .padding(.top, 10)
-            if let email = friend.email, !email.isEmpty {
-                Text(email)
-                    .font(.system(size: 13))
-                    .foregroundStyle(SplitMateTheme.labelSecondary)
-                    .padding(.top, 2)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 18)
-        .padding(.bottom, 18)
-        .background(Color.white)
-    }
-
-    private var friendAvatarColor: Color {
-        let palette: [Color] = [
-            Color(red: 1, green: 107 / 255, blue: 107 / 255),
-            SplitMateTheme.brandPurple,
-            Color(red: 78 / 255, green: 205 / 255, blue: 196 / 255),
-            SplitMateTheme.positiveGreen
-        ]
-        return palette[abs(friend.id.hashValue) % palette.count]
-    }
-
-    private var balanceCard: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 2) {
-                if abs(netBalance) < 0.0001 {
-                    Text("All settled")
-                        .font(.system(size: 12))
-                        .foregroundStyle(SplitMateTheme.labelSecondary)
-                    Text(SplitMateTheme.inrString(0))
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(SplitMateTheme.labelPrimary)
-                } else if netBalance > 0 {
-                    Text("\(friend.username) owes you")
-                        .font(.system(size: 12))
-                        .foregroundStyle(SplitMateTheme.labelSecondary)
-                    Text(SplitMateTheme.inrString(netBalance))
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(SplitMateTheme.positiveGreen)
-                } else {
-                    Text("You owe \(friend.username)")
-                        .font(.system(size: 12))
-                        .foregroundStyle(SplitMateTheme.labelSecondary)
-                    Text(SplitMateTheme.inrString(-netBalance))
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(SplitMateTheme.negativeRed)
-                }
-            }
-            Spacer()
-            if abs(netBalance) > 0.0001 {
+    /// Matches HTML `.fd-hero` — white block: back link, avatar, name, email, balance strip.
+    private var friendDetailHero: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
                 Button {
-                    showSettleUp = true
+                    dismiss()
                 } label: {
-                    Text("Settle up")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Capsule().fill(SplitMateTheme.brandPurple))
+                    HStack(spacing: 4) {
+                        Text("‹")
+                            .font(.system(size: 18, weight: .medium))
+                        Text("Friends")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .foregroundStyle(SplitMateTheme.brandPurple)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+                Button {
+                    Task { await openAddExpense() }
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(SplitMateTheme.brandPurple)
+                        .frame(width: 36, height: 36)
+                        .background(Circle().fill(SplitMateTheme.groupedBackground))
                 }
                 .buttonStyle(.plain)
             }
+            .padding(.horizontal, 18)
+            .padding(.top, 14)
+            .padding(.bottom, 12)
+
+            VStack(spacing: 0) {
+                Text(String(friend.username.prefix(1)).uppercased())
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(Color.white)
+                    .frame(width: 72, height: 72)
+                    .background(Circle().fill(friendHeroAvatarColor))
+                Text(friend.username)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(SplitMateTheme.labelPrimary)
+                    .tracking(-0.3)
+                    .padding(.top, 10)
+                if let email = friend.email, !email.isEmpty {
+                    Text(email)
+                        .font(.system(size: 13))
+                        .foregroundStyle(SplitMateTheme.labelSecondary)
+                        .padding(.top, 2)
+                }
+
+                Group {
+                    if isLoading {
+                        HStack {
+                            ProgressView()
+                                .tint(SplitMateTheme.brandPurple)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                    } else {
+                        HStack(alignment: .center) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                if abs(netBalance) < 0.0001 {
+                                    Text("All settled")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(SplitMateTheme.labelSecondary)
+                                    Text(SplitMateTheme.inrString(0))
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundStyle(SplitMateTheme.labelPrimary)
+                                } else if netBalance > 0 {
+                                    Text("\(friend.username) owes you")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(SplitMateTheme.labelSecondary)
+                                    Text(SplitMateTheme.inrString(netBalance))
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundStyle(SplitMateTheme.positiveGreen)
+                                } else {
+                                    Text("You owe \(friend.username)")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(SplitMateTheme.labelSecondary)
+                                    Text(SplitMateTheme.inrString(-netBalance))
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundStyle(SplitMateTheme.negativeRed)
+                                }
+                            }
+                            Spacer(minLength: 12)
+                            if abs(netBalance) > 0.0001 {
+                                Button {
+                                    showSettleUp = true
+                                } label: {
+                                    Text("Settle up")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(Color.white)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(Capsule().fill(SplitMateTheme.brandPurple))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(SplitMateTheme.groupedBackground)
+                )
+                .padding(.top, 14)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 18)
+            .padding(.bottom, 18)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(SplitMateTheme.groupedBackground)
-        )
-        .padding(.horizontal, 18)
-        .padding(.top, -6)
+        .frame(maxWidth: .infinity)
         .background(Color.white)
+    }
+
+    /// HTML mock uses coral `#FF6B6B` for friend avatar; keep stable per friend.
+    private var friendHeroAvatarColor: Color {
+        Color(red: 1, green: 107 / 255, blue: 107 / 255)
     }
 
     private var statsRow: some View {
@@ -969,23 +1035,105 @@ private struct FriendExpenseDetailView: View {
 }
 
 private struct FriendSettleUpSheet: View {
-    let friend: Profile
-    let amount: Double
+    private enum AmountMode: String, CaseIterable {
+        case full = "Full"
+        case custom = "Custom"
+    }
+
+    let displayName: String
+    let initial: String
+    let avatarColor: Color
+    let fullAmount: Double
     /// When false, current user owes `friend`.
     let friendOwesYou: Bool
+    let onConfirm: (Double) async -> Void
     @Environment(\.dismiss) private var dismiss
+
+    @State private var amountMode: AmountMode = .full
+    @State private var customAmountText = ""
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    private var chosenAmount: Double? {
+        switch amountMode {
+        case .full:
+            return fullAmount > 0.0001 ? fullAmount : nil
+        case .custom:
+            let raw = customAmountText.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let v = Double(raw), v > 0.0001, v <= fullAmount + 0.01 else { return nil }
+            return v
+        }
+    }
+
+    private var confirmationLine: String {
+        guard let amt = chosenAmount else {
+            return "Choose full balance or enter a custom amount up to \(SplitMateTheme.inrString(fullAmount))."
+        }
+        return "Are you sure you want to settle up \(SplitMateTheme.inrString(amt)) with \(displayName)? This will record a payment."
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 0) {
-                    headerAmount
-                    payViaSection
-                    noteSection
-                    summaryCard
+                VStack(alignment: .leading, spacing: 0) {
+                    topBar
+                    heroRow
+                    Group {
+                        if let amt = chosenAmount {
+                            Text(SplitMateTheme.inrString(amt))
+                                .font(.system(size: 42, weight: .bold))
+                                .foregroundStyle(SplitMateTheme.labelPrimary)
+                                .tracking(-1.5)
+                        } else {
+                            Text("—")
+                                .font(.system(size: 42, weight: .bold))
+                                .foregroundStyle(SplitMateTheme.labelSecondary)
+                                .tracking(-1.5)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 20)
+                    Text("Outstanding balance")
+                        .font(.system(size: 13))
+                        .foregroundStyle(SplitMateTheme.labelSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 4)
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.system(size: 13))
+                            .foregroundStyle(SplitMateTheme.negativeRed)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 12)
+                    }
+
+                    amountModePicker
+                        .padding(.horizontal, 18)
+                        .padding(.top, 28)
+
+                    if amountMode == .custom {
+                        TextField("Amount (max \(SplitMateTheme.inrString(fullAmount)))", text: $customAmountText)
+                            .keyboardType(.decimalPad)
+                            .font(.system(size: 17, weight: .medium))
+                            .padding(14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(SplitMateTheme.groupedBackground)
+                            )
+                            .padding(.horizontal, 18)
+                            .padding(.top, 12)
+                    }
+
+                    Text(confirmationLine)
+                        .font(.system(size: 15))
+                        .foregroundStyle(SplitMateTheme.labelSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 18)
+                        .padding(.top, 22)
+
                     confirmButton
                 }
-                .padding(.bottom, 28)
+                .padding(.bottom, 32)
             }
             .background(Color.white)
             .navigationBarTitleDisplayMode(.inline)
@@ -997,193 +1145,112 @@ private struct FriendSettleUpSheet: View {
         }
     }
 
-    private var headerAmount: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button {
-                    dismiss()
-                } label: {
-                    Text("‹ Back")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(SplitMateTheme.brandPurple)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 7)
-                        .background(Capsule().fill(SplitMateTheme.groupedBackground))
-                }
-                Spacer()
-                Text("Settle up")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(SplitMateTheme.labelPrimary)
-                Spacer()
-                Color.clear.frame(width: 70, height: 1)
+    private var topBar: some View {
+        HStack {
+            Button {
+                dismiss()
+            } label: {
+                Text("‹ Back")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(SplitMateTheme.brandPurple)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Capsule().fill(SplitMateTheme.groupedBackground))
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 12)
-
-            HStack(spacing: 16) {
-                VStack(spacing: 6) {
-                    Text("Y")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(Color.white)
-                        .frame(width: 52, height: 52)
-                        .background(Circle().fill(SplitMateTheme.brandPurple))
-                    Text("You")
-                        .font(.system(size: 12))
-                        .foregroundStyle(SplitMateTheme.labelSecondary)
-                }
-                VStack(spacing: 4) {
-                    HStack(spacing: 3) {
-                        Capsule()
-                            .fill(SplitMateTheme.brandPurple)
-                            .frame(width: 44, height: 2.5)
-                        Text("›")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(SplitMateTheme.brandPurple)
-                    }
-                    Text("sends")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color(red: 174 / 255, green: 174 / 255, blue: 178 / 255))
-                }
-                VStack(spacing: 6) {
-                    Text(String(friend.username.prefix(1)).uppercased())
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(Color.white)
-                        .frame(width: 52, height: 52)
-                        .background(Circle().fill(Color(red: 1, green: 107 / 255, blue: 107 / 255)))
-                    Text(friend.username)
-                        .font(.system(size: 12))
-                        .foregroundStyle(SplitMateTheme.labelSecondary)
-                }
-            }
-            .padding(.top, 28)
-
-            Text(SplitMateTheme.inrString(amount))
-                .font(.system(size: 42, weight: .bold))
+            .buttonStyle(.plain)
+            .disabled(isLoading)
+            Spacer()
+            Text("Settle up")
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(SplitMateTheme.labelPrimary)
-                .tracking(-1.5)
-                .padding(.top, 20)
-            Text("full settlement")
-                .font(.system(size: 13))
-                .foregroundStyle(SplitMateTheme.labelSecondary)
-                .padding(.top, 4)
-        }
-    }
-
-    private var payViaSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Pay via")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(SplitMateTheme.labelSecondary)
-                .textCase(.uppercase)
-                .tracking(0.4)
-            HStack(spacing: 10) {
-                payChip(emoji: "⚡", title: "UPI", sub: "Instant", selected: true)
-                payChip(emoji: "🏦", title: "Bank", sub: "1–2 days", selected: false)
-                payChip(emoji: "💵", title: "Cash", sub: "Record it", selected: false)
-            }
+            Spacer()
+            Color.clear.frame(width: 70, height: 1)
         }
         .padding(.horizontal, 18)
-        .padding(.top, 24)
+        .padding(.top, 12)
     }
 
-    private func payChip(emoji: String, title: String, sub: String, selected: Bool) -> some View {
-        VStack(spacing: 5) {
-            Text(emoji).font(.system(size: 22))
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(selected ? SplitMateTheme.brandPurple : SplitMateTheme.labelPrimary)
-            Text(sub)
-                .font(.system(size: 10))
-                .foregroundStyle(SplitMateTheme.labelSecondary)
+    private var heroRow: some View {
+        HStack(spacing: 16) {
+            VStack(spacing: 6) {
+                Text("Y")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(Color.white)
+                    .frame(width: 52, height: 52)
+                    .background(Circle().fill(SplitMateTheme.brandPurple))
+                Text("You")
+                    .font(.system(size: 12))
+                    .foregroundStyle(SplitMateTheme.labelSecondary)
+            }
+            VStack(spacing: 4) {
+                HStack(spacing: 3) {
+                    Capsule()
+                        .fill(SplitMateTheme.brandPurple)
+                        .frame(width: 44, height: 2.5)
+                    Text("›")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(SplitMateTheme.brandPurple)
+                }
+                Text("with")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Color(red: 174 / 255, green: 174 / 255, blue: 178 / 255))
+            }
+            VStack(spacing: 6) {
+                Text(initial)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(Color.white)
+                    .frame(width: 52, height: 52)
+                    .background(Circle().fill(avatarColor))
+                Text(displayName)
+                    .font(.system(size: 12))
+                    .foregroundStyle(SplitMateTheme.labelSecondary)
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(selected ? Color(red: 243 / 255, green: 240 / 255, blue: 1) : Color.white)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(selected ? SplitMateTheme.brandPurple : SplitMateTheme.separator, lineWidth: selected ? 2 : 0.5)
-        )
+        .padding(.top, 28)
     }
 
-    private var noteSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Add a note")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(SplitMateTheme.labelSecondary)
-                .textCase(.uppercase)
-                .tracking(0.4)
-            Text("e.g. Trip expenses")
-                .font(.system(size: 15))
-                .foregroundStyle(Color(red: 174 / 255, green: 174 / 255, blue: 178 / 255))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(SplitMateTheme.groupedBackground)
-                )
-        }
-        .padding(.horizontal, 18)
-        .padding(.top, 20)
-    }
-
-    private var summaryCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            summaryRow("From", friendOwesYou ? "\(friend.username) → You" : "You → \(friend.username)")
-            summaryRow("Method", "UPI (placeholder)")
-            summaryRow("Covers", "Shared balance")
-            Divider().padding(.vertical, 4)
-            HStack {
-                Text("Total")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(SplitMateTheme.labelPrimary)
-                Spacer()
-                Text(SplitMateTheme.inrString(amount))
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(SplitMateTheme.brandPurple)
+    private var amountModePicker: some View {
+        Picker("Amount", selection: $amountMode) {
+            ForEach(AmountMode.allCases, id: \.self) { mode in
+                Text(mode.rawValue).tag(mode)
             }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(red: 249 / 255, green: 249 / 255, blue: 1))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color(red: 232 / 255, green: 228 / 255, blue: 1), lineWidth: 0.5)
-        )
-        .padding(.horizontal, 18)
-        .padding(.top, 20)
-    }
-
-    private func summaryRow(_ k: String, _ v: String) -> some View {
-        HStack {
-            Text(k)
-                .font(.system(size: 13))
-                .foregroundStyle(SplitMateTheme.labelSecondary)
-            Spacer()
-            Text(v)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(SplitMateTheme.labelPrimary)
-        }
+        .pickerStyle(.segmented)
     }
 
     private var confirmButton: some View {
         Button {
-            dismiss()
+            guard let amt = chosenAmount else { return }
+            Task {
+                isLoading = true
+                errorMessage = nil
+                await onConfirm(amt)
+                isLoading = false
+                dismiss()
+            }
         } label: {
-            Text("Confirm \(SplitMateTheme.inrString(amount))")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(SplitMateTheme.brandPurple))
+            HStack(spacing: 8) {
+                if isLoading {
+                    ProgressView()
+                        .tint(.white)
+                }
+                Text("Confirm")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .foregroundStyle(Color.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(SplitMateTheme.brandPurple)
+            )
         }
         .buttonStyle(.plain)
+        .disabled(chosenAmount == nil || isLoading)
+        .opacity((chosenAmount == nil || isLoading) ? 0.4 : 1)
         .padding(.horizontal, 18)
-        .padding(.top, 16)
+        .padding(.top, 28)
     }
 }
 
@@ -1228,60 +1295,279 @@ private struct PendingInviteExpenseItem: Identifiable {
 private struct PendingFriendExpenseDetailView: View {
     let invite: PendingFriendInvite
     @Environment(SessionStore.self) private var sessionStore
+    @Environment(\.dismiss) private var dismiss
 
     @State private var items: [PendingInviteExpenseItem] = []
     @State private var errorMessage: String?
     @State private var totalPendingShare: Double = 0
     @State private var isLoading = false
+    @State private var showSettleUp = false
+    @State private var pendingExpenseInvite: PendingFriendInvite?
 
     var body: some View {
-        List {
-            if isLoading {
-                HStack {
-                    Spacer()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                heroSection
+                Color.clear.frame(height: 12)
+                
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(SplitMateTheme.negativeRed)
+                        .padding(.horizontal, 18)
+                        .padding(.top, 8)
+                }
+
+                if isLoading {
                     ProgressView("Loading…")
-                    Spacer()
-                }
-            }
-            if let errorMessage {
-                Text(errorMessage).foregroundStyle(.red)
-            }
-            Section("Summary") {
-                if totalPendingShare > 0.0001 {
-                    Text("Pending share: \(inrString(totalPendingShare))")
-                        .foregroundStyle(.orange)
+                        .tint(SplitMateTheme.brandPurple)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
                 } else {
-                    Text("No pending share yet")
-                        .foregroundStyle(.secondary)
+                    statsRow
+                    
+                    Text("EXPENSES")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(SplitMateTheme.labelSecondary)
+                        .tracking(0.3)
+                        .padding(.horizontal, 18)
+                        .padding(.top, 24)
+                        .padding(.bottom, 8)
+
+                    expenseList
                 }
             }
-            Section("Expense descriptions") {
-                if items.isEmpty {
-                    Text("No expense descriptions yet.")
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(items) { item in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(item.description.isEmpty ? "Expense" : item.description)
-                            .font(.headline)
-                        Text("Group: \(item.groupName)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("Pending share: \(inrString(item.amount))")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                        Text("Date: \(item.date)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
+            .padding(.bottom, 28)
         }
-        .navigationTitle(invite.name)
+        .background(SplitMateTheme.groupedBackground)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationDestination(item: $pendingExpenseInvite) { invite in
+            PendingExpenseLoaderView(invite: invite)
+        }
+        .sheet(isPresented: $showSettleUp) {
+            FriendSettleUpSheet(
+                displayName: invite.name,
+                initial: String(invite.name.prefix(1)).uppercased(),
+                avatarColor: Color(red: 1, green: 149 / 255, blue: 0),
+                fullAmount: totalPendingShare,
+                friendOwesYou: true,
+                onConfirm: { amount in
+                    guard let uid = sessionStore.session?.user.id else { return }
+                    let groupService = GroupService(client: sessionStore.client)
+                    let expenseService = ExpenseService(client: sessionStore.client)
+                    do {
+                        let group = try await groupService.ensurePendingExpenseGroup(creatorId: uid, invite: invite)
+                        try await expenseService.settleUpPending(
+                            groupId: group.id,
+                            recorderId: uid,
+                            pendingInviteId: invite.id,
+                            amount: amount
+                        )
+                        await load()
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
+                }
+            )
+        }
         .task {
             await load()
         }
+    }
+
+    private var heroSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Button {
+                    dismiss()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("‹")
+                            .font(.system(size: 18, weight: .medium))
+                        Text("Friends")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .foregroundStyle(SplitMateTheme.brandPurple)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+                Button {
+                    pendingExpenseInvite = invite
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(SplitMateTheme.brandPurple)
+                        .frame(width: 36, height: 36)
+                        .background(Circle().fill(SplitMateTheme.groupedBackground))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 14)
+            .padding(.bottom, 12)
+
+            VStack(spacing: 0) {
+                Text(String(invite.name.prefix(1)).uppercased())
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(Color.white)
+                    .frame(width: 72, height: 72)
+                    .background(Circle().fill(Color(red: 1, green: 149 / 255, blue: 0)))
+                
+                Text(invite.name)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(SplitMateTheme.labelPrimary)
+                    .tracking(-0.3)
+                    .padding(.top, 10)
+                
+                Text(invite.email)
+                    .font(.system(size: 13))
+                    .foregroundStyle(SplitMateTheme.labelSecondary)
+                    .padding(.top, 2)
+
+                Group {
+                    if isLoading {
+                        HStack {
+                            ProgressView()
+                                .tint(SplitMateTheme.brandPurple)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                    } else {
+                        HStack(alignment: .center) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                if totalPendingShare < 0.0001 {
+                                    Text("No pending share")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(SplitMateTheme.labelSecondary)
+                                    Text(SplitMateTheme.inrString(0))
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundStyle(SplitMateTheme.labelPrimary)
+                                } else {
+                                    Text("Pending share")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(SplitMateTheme.labelSecondary)
+                                    Text(SplitMateTheme.inrString(totalPendingShare))
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundStyle(Color(red: 1, green: 149 / 255, blue: 0))
+                                }
+                            }
+                            Spacer(minLength: 12)
+                            if totalPendingShare > 0.0001 {
+                                Button {
+                                    showSettleUp = true
+                                } label: {
+                                    Text("Settle up")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(Color.white)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(Capsule().fill(SplitMateTheme.brandPurple))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(SplitMateTheme.groupedBackground)
+                )
+                .padding(.top, 14)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 18)
+            .padding(.bottom, 18)
+        }
+        .frame(maxWidth: .infinity)
+        .background(Color.white)
+    }
+
+    private var statsRow: some View {
+        HStack(spacing: 8) {
+            statChip(value: "\(items.count)", label: "Shared expenses")
+            statChip(value: SplitMateTheme.inrString(totalPendingShare), label: "Total pending")
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 12)
+    }
+
+    private func statChip(value: String, label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(SplitMateTheme.labelPrimary)
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundStyle(SplitMateTheme.labelSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white)
+        )
+    }
+
+    private var expenseList: some View {
+        VStack(spacing: 0) {
+            if items.isEmpty {
+                Text("No expenses yet.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(SplitMateTheme.labelSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 32)
+            } else {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    expenseRow(item: item)
+                    if index < items.count - 1 {
+                        Divider()
+                            .background(SplitMateTheme.separator.opacity(0.6))
+                            .padding(.leading, 68)
+                    }
+                }
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.white)
+        )
+        .padding(.horizontal, 14)
+    }
+
+    private func expenseRow(item: PendingInviteExpenseItem) -> some View {
+        HStack(spacing: 12) {
+            Text(friendExpenseEmoji(for: item.description))
+                .font(.system(size: 20))
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(friendExpenseIconBackground(for: item.description)))
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.description.isEmpty ? "Expense" : item.description)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(SplitMateTheme.labelPrimary)
+                Text(item.groupName)
+                    .font(.system(size: 12))
+                    .foregroundStyle(SplitMateTheme.labelSecondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(SplitMateTheme.inrString(item.amount))
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Color(red: 1, green: 149 / 255, blue: 0))
+                Text(friendShortMonthDay(from: item.date))
+                    .font(.system(size: 11))
+                    .foregroundStyle(SplitMateTheme.labelSecondary)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 
     private func load() async {
@@ -1318,15 +1604,6 @@ private struct PendingFriendExpenseDetailView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
-    }
-
-    private func inrString(_ amount: Double) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencyCode = "INR"
-        f.maximumFractionDigits = 2
-        f.minimumFractionDigits = 2
-        return f.string(from: NSNumber(value: amount)) ?? String(format: "₹%.2f", amount)
     }
 }
 

@@ -14,28 +14,41 @@ struct GroupDetailView: View {
     @State private var errorMessage: String?
     @State private var showAddExpense = false
     @State private var showAddMember = false
+    @State private var isLoadingDetail = false
+    @State private var hasLoadedGroupOnce = false
+    @State private var lastLoadedGroupId: UUID?
 
     private var currentUserId: UUID? { sessionStore.session?.user.id }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                heroHeader
-                memberStrip
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(SplitMateTheme.negativeRed)
-                        .padding(.horizontal, 18)
-                        .padding(.top, 8)
+        ZStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    heroHeader
+                    memberStrip
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(SplitMateTheme.negativeRed)
+                            .padding(.horizontal, 18)
+                            .padding(.top, 8)
+                    }
+                    if !settlementRows.isEmpty {
+                        settleStrip
+                    }
+                    expensesSection
+                    expenseFeed
                 }
-                if !settlementRows.isEmpty {
-                    settleStrip
-                }
-                expensesSection
-                expenseFeed
+                .padding(.bottom, 32)
             }
-            .padding(.bottom, 32)
+            if isLoadingDetail {
+                ZStack {
+                    SplitMateTheme.groupedBackground.opacity(0.92)
+                    ProgressView("Loading group…")
+                        .tint(SplitMateTheme.brandPurple)
+                }
+                .allowsHitTesting(true)
+            }
         }
         .background(SplitMateTheme.groupedBackground)
         .navigationBarBackButtonHidden(true)
@@ -51,6 +64,10 @@ struct GroupDetailView: View {
             })
         }
         .task(id: group.id) {
+            if lastLoadedGroupId != group.id {
+                hasLoadedGroupOnce = false
+                lastLoadedGroupId = group.id
+            }
             await reload()
         }
         .refreshable {
@@ -433,6 +450,14 @@ struct GroupDetailView: View {
 
     private func reload() async {
         errorMessage = nil
+        let showBlockingLoader = !hasLoadedGroupOnce
+        if showBlockingLoader { isLoadingDetail = true }
+        defer {
+            if showBlockingLoader {
+                isLoadingDetail = false
+                hasLoadedGroupOnce = true
+            }
+        }
         let client = sessionStore.client
         let gs = GroupService(client: client)
         let es = ExpenseService(client: client)

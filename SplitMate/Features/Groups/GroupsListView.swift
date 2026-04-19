@@ -7,12 +7,19 @@ struct GroupsListView: View {
     @State private var summaries: [UUID: GroupListSummary] = [:]
     @State private var errorMessage: String?
     @State private var showCreate = false
+    @State private var isLoadingGroups = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     headerRow
+                    if isLoadingGroups {
+                        ProgressView("Loading groups…")
+                            .tint(SplitMateTheme.brandPurple)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 28)
+                    }
                     if let errorMessage {
                         Text(errorMessage)
                             .font(.subheadline)
@@ -20,7 +27,9 @@ struct GroupsListView: View {
                             .padding(.horizontal, 18)
                             .padding(.bottom, 8)
                     }
-                    netBalanceBanner
+                    if !isLoadingGroups || !groups.isEmpty {
+                        netBalanceBanner
+                    }
                     sectionLabel("Your groups")
                     VStack(spacing: 0) {
                         ForEach(Array(groups.enumerated()), id: \.element.id) { index, g in
@@ -230,6 +239,8 @@ struct GroupsListView: View {
 
     private func load() async {
         errorMessage = nil
+        isLoadingGroups = true
+        defer { isLoadingGroups = false }
         guard let uid = sessionStore.session?.user.id else { return }
         let gs = GroupService(client: sessionStore.client)
         let es = ExpenseService(client: sessionStore.client)
