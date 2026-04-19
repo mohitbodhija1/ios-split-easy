@@ -22,55 +22,63 @@ struct OnboardingView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .animation(.easeInOut(duration: 0.35), value: page)
 
-            pageDots
-
-            if page < pageCount - 1 {
-                HStack {
-                    Button("Back") {
-                        if page > 0 { page -= 1 }
-                    }
-                    .disabled(page == 0)
-                    .buttonStyle(.bordered)
-
-                    Spacer()
-
-                    Button("Skip") { page = pageCount - 1 }
-                        .foregroundStyle(.secondary)
-
-                    Button("Next") { page += 1 }
-                        .buttonStyle(.borderedProminent)
-                        .tint(brandPurple)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .background(.bar)
-            } else {
-                HStack {
-                    Button("Back") {
-                        if page > 0 { page -= 1 }
-                    }
-                    .buttonStyle(.bordered)
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .background(.bar)
-            }
+            stickyBottomControls
         }
         .background(Color(.systemGroupedBackground))
     }
 
-    private var pageDots: some View {
-        HStack(spacing: 8) {
-            ForEach(0 ..< pageCount, id: \.self) { i in
-                Capsule()
-                    .fill(i == page ? brandPurple : Color.secondary.opacity(0.25))
-                    .frame(width: i == page ? 22 : 7, height: 7)
-                    .animation(.easeInOut(duration: 0.25), value: page)
-                    .onTapGesture { page = i }
+    private var stickyBottomControls: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                ForEach(0 ..< pageCount, id: \.self) { i in
+                    Capsule()
+                        .fill(i == page ? brandPurple : Color.secondary.opacity(0.25))
+                        .frame(width: i == page ? 22 : 7, height: 7)
+                        .animation(.easeInOut(duration: 0.25), value: page)
+                        .onTapGesture { page = i }
+                }
+            }
+            .padding(.top, 8)
+
+            onboardingNextButton(bottomButtonTitle, action: bottomButtonAction)
+                .padding(.horizontal, 24)
+
+            if page == 0 {
+                Button {
+                    onFinished(false)
+                } label: {
+                    Text("Already have an account? ")
+                        .foregroundStyle(.secondary)
+                    + Text("Sign in")
+                        .foregroundStyle(brandPurple)
+                        .fontWeight(.medium)
+                }
+                .font(.footnote)
+            } else if page == pageCount - 1 {
+                Text("By continuing, you agree to our Terms & Privacy Policy")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.35))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
             }
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, 16)
+    }
+
+    private var bottomButtonTitle: String {
+        switch page {
+        case 0: "Get started"
+        case 1, 2, 3: "Next"
+        default: "Create my free account"
+        }
+    }
+
+    private func bottomButtonAction() {
+        if page < pageCount - 1 {
+            page += 1
+        } else {
+            onFinished(true)
+        }
     }
 
     // MARK: - Slide 0 Welcome
@@ -126,41 +134,6 @@ struct OnboardingView: View {
                 .padding(.top, 12)
 
             Spacer()
-
-            Button {
-                page = 1
-            } label: {
-                Text("Get started — it's free")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [brandPurple, brandPink],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                    )
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 24)
-
-            Button {
-                onFinished(false)
-            } label: {
-                Text("Already have an account? ")
-                    .foregroundStyle(.secondary)
-                + Text("Sign in")
-                    .foregroundStyle(brandPurple)
-                    .fontWeight(.medium)
-            }
-            .font(.footnote)
-            .padding(.top, 12)
-            .padding(.bottom, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
@@ -475,11 +448,7 @@ struct OnboardingView: View {
                 .font(.title2.weight(.bold))
                 .frame(maxWidth: .infinity)
 
-            HStack(spacing: 8) {
-                settleMethod("⚡", "UPI", active: true)
-                settleMethod("🏦", "Bank", active: false)
-                settleMethod("💵", "Cash", active: false)
-            }
+            
         }
         .padding(18)
         .background(
@@ -574,44 +543,14 @@ struct OnboardingView: View {
                     .padding(.top, 8)
 
                 VStack(spacing: 0) {
-                    perkRow(icon: "💜", title: "Free forever", sub: "No hidden fees, ever", tint: brandPurple.opacity(0.35))
+                    perkRow(icon: "💜", title: "Free for limited time", sub: "No hidden fee for limited time", tint: brandPurple.opacity(0.35))
                     perkRow(icon: "🔒", title: "Bank-grade security", sub: "Your data stays private", tint: Color.cyan.opacity(0.25))
                     perkRow(icon: "🌍", title: "Multi-currency", sub: "Track balances in your currency", tint: Color.red.opacity(0.22))
                     perkRow(icon: "⚡", title: "Instant notifications", sub: "Know when expenses are added", tint: Color.green.opacity(0.22))
                 }
                 .padding(.top, 20)
                 .padding(.horizontal, 8)
-
-                Button {
-                    onFinished(true)
-                } label: {
-                    Text("Create my free account")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [brandPurple, brandPink],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                        )
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-
-                Text("By continuing, you agree to our Terms & Privacy Policy")
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.35))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                    .padding(.top, 10)
-                    .padding(.bottom, 32)
+                .padding(.bottom, 32)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -646,6 +585,27 @@ struct OnboardingView: View {
         .overlay(alignment: .bottom) {
             Divider().background(.white.opacity(0.08))
         }
+    }
+
+    private func onboardingNextButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [brandPurple, brandPink],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 

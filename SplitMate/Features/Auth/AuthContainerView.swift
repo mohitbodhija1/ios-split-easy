@@ -108,7 +108,11 @@ private struct SignInFieldsStyled: View {
                     Image(systemName: "envelope.fill")
                         .font(.system(size: 14))
                         .foregroundStyle(SplitMateTheme.labelSecondary.opacity(0.5))
-                    TextField("Email", text: $email)
+                    TextField(
+                        "",
+                        text: $email,
+                        prompt: Text("Email").foregroundStyle(.black)
+                    )
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
@@ -124,7 +128,11 @@ private struct SignInFieldsStyled: View {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 14))
                         .foregroundStyle(SplitMateTheme.labelSecondary.opacity(0.5))
-                    SecureField("Password", text: $password)
+                    SecureField(
+                        "",
+                        text: $password,
+                        prompt: Text("Password").foregroundStyle(.black)
+                    )
                         .textContentType(.password)
                         .font(.system(size: 15))
                         .foregroundStyle(SplitMateTheme.labelPrimary)
@@ -262,13 +270,21 @@ private struct SignUpFieldsStyled: View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
                 fieldRow(icon: "person.fill", content: {
-                    TextField("Username", text: $username)
+                    TextField(
+                        "",
+                        text: $username,
+                        prompt: Text("Username").foregroundStyle(.black)
+                    )
                         .textInputAutocapitalization(.never)
                         .font(.system(size: 15))
                 })
                 Divider().background(SplitMateTheme.separator)
                 fieldRow(icon: "envelope.fill", content: {
-                    TextField("Email", text: $email)
+                    TextField(
+                        "",
+                        text: $email,
+                        prompt: Text("Email").foregroundStyle(.black)
+                    )
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
@@ -276,7 +292,11 @@ private struct SignUpFieldsStyled: View {
                 })
                 Divider().background(SplitMateTheme.separator)
                 fieldRow(icon: "lock.fill", content: {
-                    SecureField("Password", text: $password)
+                    SecureField(
+                        "",
+                        text: $password,
+                        prompt: Text("Password").foregroundStyle(.black)
+                    )
                         .textContentType(.newPassword)
                         .font(.system(size: 15))
                 })

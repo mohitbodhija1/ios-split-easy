@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "5F36BFD62F93BC29000CC0CB"
-               BuildableName = "SplitMate.app"
+               BuildableName = "Splitmate: Bill &amp; Expenses.app"
                BlueprintName = "SplitMate"
                ReferencedContainer = "container:SplitMate.xcodeproj">
             </BuildableReference>
@@ -31,7 +31,7 @@
       shouldAutocreateTestPlan = "YES">
    </TestAction>
    <LaunchAction
-      buildConfiguration = "Debug"
+      buildConfiguration = "Release"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
@@ -46,7 +46,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "5F36BFD62F93BC29000CC0CB"
-            BuildableName = "SplitMate.app"
+            BuildableName = "Splitmate: Bill &amp; Expenses.app"
             BlueprintName = "SplitMate"
             ReferencedContainer = "container:SplitMate.xcodeproj">
          </BuildableReference>
@@ -75,7 +75,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "5F36BFD62F93BC29000CC0CB"
-            BuildableName = "SplitMate.app"
+            BuildableName = "Splitmate: Bill &amp; Expenses.app"
             BlueprintName = "SplitMate"
             ReferencedContainer = "container:SplitMate.xcodeproj">
          </BuildableReference>

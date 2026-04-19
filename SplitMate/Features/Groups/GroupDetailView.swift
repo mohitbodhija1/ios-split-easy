@@ -53,7 +53,9 @@ struct GroupDetailView: View {
         .background(SplitMateTheme.groupedBackground)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(isPresented: $showAddExpense) {
+        .sheet(isPresented: $showAddExpense, onDismiss: {
+            Task { await reload() }
+        }) {
             NavigationStack {
                 AddExpenseView(group: group)
             }

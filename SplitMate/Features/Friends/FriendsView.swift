@@ -17,6 +17,9 @@ struct FriendsView: View {
     @State private var pendingExpenseInvite: PendingFriendInvite?
     @State private var isLoading = false
     @State private var showingAddFriendSheet = false
+    @State private var showingQuickExpensePicker = false
+    @State private var quickExpensePickedGroup: GroupRecord?
+    @State private var quickExpenseGroupForSheet: GroupRecord?
     @State private var searchQuery = ""
 
     private var filteredFriends: [Profile] {
@@ -62,6 +65,30 @@ struct FriendsView: View {
             .background(SplitMateTheme.groupedBackground)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
+            .overlay(alignment: .bottomTrailing) {
+                Button {
+                    showingQuickExpensePicker = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                        .background(
+                            Circle().fill(
+                                LinearGradient(
+                                    colors: [SplitMateTheme.brandPurple, SplitMateTheme.brandPink],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        )
+                        .shadow(color: .black.opacity(0.16), radius: 10, y: 5)
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 18)
+                .padding(.bottom, 92)
+                .accessibilityLabel("Add expense")
+            }
             .sheet(isPresented: $showingAddFriendSheet) {
                 AddFriendSheet { profile in
                     if await sendRequest(to: profile) {
@@ -75,6 +102,27 @@ struct FriendsView: View {
                         return true
                     }
                     return false
+                }
+            }
+            .sheet(isPresented: $showingQuickExpensePicker, onDismiss: {
+                if let group = quickExpensePickedGroup {
+                    quickExpenseGroupForSheet = group
+                    quickExpensePickedGroup = nil
+                }
+            }) {
+                QuickExpenseTargetPickerSheet(
+                    friends: friends,
+                    onPicked: { group in
+                        quickExpensePickedGroup = group
+                        showingQuickExpensePicker = false
+                    }
+                )
+            }
+            .sheet(item: $quickExpenseGroupForSheet, onDismiss: {
+                Task { await reload() }
+            }) { group in
+                NavigationStack {
+                    AddExpenseView(group: group)
                 }
             }
             .navigationDestination(item: $pendingPairFriend) { friend in
@@ -523,6 +571,198 @@ struct FriendsView: View {
     }
 }
 
+private struct QuickExpenseTargetPickerSheet: View {
+    @Environment(SessionStore.self) private var sessionStore
+    @Environment(\.dismiss) private var dismiss
+
+    let friends: [Profile]
+    let onPicked: (GroupRecord) -> Void
+
+    @State private var groups: [GroupRecord] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var activeFriendId: UUID?
+    @State private var activeGroupId: UUID?
+
+    private var visibleGroups: [GroupRecord] {
+        groups.filter { $0.groupType != "pair" }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(SplitMateTheme.negativeRed)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 10)
+                    }
+
+                    section("Select friend") {
+                        if friends.isEmpty {
+                            emptyRow("No friends yet")
+                        } else {
+                            ForEach(friends, id: \.id) { friend in
+                                Button {
+                                    Task { await pickFriend(friend) }
+                                } label: {
+                                    targetRow(
+                                        iconText: String(friend.username.prefix(1)).uppercased(),
+                                        title: friend.username,
+                                        subtitle: friend.email ?? "Create 1:1 expense",
+                                        trailing: activeFriendId == friend.id ? "Opening…" : "Select"
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(activeFriendId != nil || activeGroupId != nil)
+                                if friend.id != friends.last?.id {
+                                    Divider().padding(.leading, 58)
+                                }
+                            }
+                        }
+                    }
+
+                    section("Select group") {
+                        if isLoading {
+                            ProgressView("Loading groups…")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(14)
+                        } else if visibleGroups.isEmpty {
+                            emptyRow("No groups available")
+                        } else {
+                            ForEach(visibleGroups, id: \.id) { group in
+                                Button {
+                                    pickGroup(group)
+                                } label: {
+                                    targetRow(
+                                        iconText: groupEmoji(for: group.name),
+                                        title: group.name,
+                                        subtitle: group.groupType.capitalized,
+                                        trailing: activeGroupId == group.id ? "Opening…" : "Select"
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(activeFriendId != nil || activeGroupId != nil)
+                                if group.id != visibleGroups.last?.id {
+                                    Divider().padding(.leading, 58)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.top, 12)
+                .padding(.bottom, 20)
+            }
+            .background(SplitMateTheme.groupedBackground)
+            .navigationTitle("Add expense")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
+            }
+            .task {
+                await loadGroups()
+            }
+        }
+    }
+
+    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(SplitMateTheme.labelSecondary)
+                .textCase(.uppercase)
+                .tracking(0.3)
+                .padding(.horizontal, 16)
+
+            VStack(spacing: 0) {
+                content()
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white)
+            )
+            .padding(.horizontal, 14)
+        }
+        .padding(.bottom, 14)
+    }
+
+    private func targetRow(iconText: String, title: String, subtitle: String, trailing: String) -> some View {
+        HStack(spacing: 10) {
+            Text(iconText)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 34)
+                .background(Circle().fill(SplitMateTheme.brandPurple))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(SplitMateTheme.labelPrimary)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(SplitMateTheme.labelSecondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Text(trailing)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(SplitMateTheme.brandPurple)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    private func emptyRow(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13))
+            .foregroundStyle(SplitMateTheme.labelSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+    }
+
+    private func loadGroups() async {
+        guard let uid = sessionStore.session?.user.id else { return }
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            groups = try await GroupService(client: sessionStore.client).groups(for: uid)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func pickGroup(_ group: GroupRecord) {
+        activeGroupId = group.id
+        onPicked(group)
+    }
+
+    private func pickFriend(_ friend: Profile) async {
+        guard let uid = sessionStore.session?.user.id else { return }
+        activeFriendId = friend.id
+        do {
+            let group = try await GroupService(client: sessionStore.client).ensurePairGroup(
+                creatorId: uid,
+                friendId: friend.id
+            )
+            onPicked(group)
+        } catch {
+            activeFriendId = nil
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func groupEmoji(for name: String) -> String {
+        let options = ["🏠", "✈️", "🎉", "🍽️", "💼", "🏖️", "🚗", "🏡"]
+        return options[abs(name.hashValue) % options.count]
+    }
+}
+
 private struct PendingExpenseLoaderView: View {
     let invite: PendingFriendInvite
     @Environment(SessionStore.self) private var sessionStore
@@ -615,7 +855,9 @@ private struct FriendExpenseDetailView: View {
         .background(SplitMateTheme.groupedBackground)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(item: $pairGroupForExpense) { group in
+        .sheet(item: $pairGroupForExpense, onDismiss: {
+            Task { await load() }
+        }) { group in
             NavigationStack {
                 AddExpenseView(group: group)
             }

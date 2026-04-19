@@ -11,7 +11,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		5F36BFD72F93BC29000CC0CB /* SplitMate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SplitMate.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5F36BFD72F93BC29000CC0CB /* Splitmate: Bill & Expenses.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Splitmate: Bill & Expenses.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -45,7 +45,7 @@
 		5F36BFD82F93BC29000CC0CB /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5F36BFD72F93BC29000CC0CB /* SplitMate.app */,
+				5F36BFD72F93BC29000CC0CB /* Splitmate: Bill & Expenses.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -73,7 +73,7 @@
 				5F36C0022F93BC29000CC0A1 /* Supabase */,
 			);
 			productName = SplitMate;
-			productReference = 5F36BFD72F93BC29000CC0CB /* SplitMate.app */;
+			productReference = 5F36BFD72F93BC29000CC0CB /* Splitmate: Bill & Expenses.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -261,6 +261,7 @@
 				CODE_SIGN_ENTITLEMENTS = SplitMate/SplitMate.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = KFYZTB84NM;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -275,7 +276,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = bodhija.SplitMate;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Splitmate: Bill & Expenses";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -294,6 +295,7 @@
 				CODE_SIGN_ENTITLEMENTS = SplitMate/SplitMate.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = KFYZTB84NM;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -308,7 +310,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = bodhija.SplitMate;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Splitmate: Bill & Expenses";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;

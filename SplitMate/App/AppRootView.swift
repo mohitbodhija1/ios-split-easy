@@ -17,6 +17,7 @@ struct AppRootView: View {
                     openAuthWithSignUp = signUp
                     hasCompletedOnboarding = true
                 }
+                .preferredColorScheme(.light)
             } else {
                 AuthContainerView(preferSignUp: openAuthWithSignUp)
                     .id(openAuthWithSignUp)
