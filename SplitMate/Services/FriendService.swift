@@ -125,6 +125,9 @@ struct FriendService {
     }
 
     /// Profiles of users you have an accepted friendship with (either direction).
+    ///
+    /// Replaces the old loop that made a `single()` profile fetch per friend
+    /// with a single `IN (...)` lookup.
     func acceptedFriends(for userId: UUID) async throws -> [Profile] {
         let requests: [FriendRequest] = try await client
             .from("friend_requests")
@@ -134,19 +137,13 @@ struct FriendService {
             .execute()
             .value
 
-        var otherIds: [UUID] = []
+        var otherIds = Set<UUID>()
         for r in requests {
-            if r.fromUser == userId { otherIds.append(r.toUser) }
-            else if r.toUser == userId { otherIds.append(r.fromUser) }
+            if r.fromUser == userId { otherIds.insert(r.toUser) }
+            else if r.toUser == userId { otherIds.insert(r.fromUser) }
         }
-
-        var profiles: [Profile] = []
-        for oid in Set(otherIds) {
-            if let p = try? await profile(id: oid) {
-                profiles.append(p)
-            }
-        }
-        return profiles.sorted { $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending }
+        let fetched = try await profiles(ids: Array(otherIds))
+        return fetched.sorted { $0.username.localizedCaseInsensitiveCompare($1.username) == .orderedAscending }
     }
 
     func profile(id: UUID) async throws -> Profile {
@@ -155,6 +152,31 @@ struct FriendService {
             .select()
             .eq("id", value: id.uuidString)
             .single()
+            .execute()
+            .value
+    }
+
+    /// Batch profile lookup – collapses N per-id calls into one `IN (...)` query.
+    func profiles(ids: [UUID]) async throws -> [Profile] {
+        guard !ids.isEmpty else { return [] }
+        let unique = Array(Set(ids))
+        return try await client
+            .from("profiles")
+            .select()
+            .in("id", values: unique.map(\.uuidString))
+            .execute()
+            .value
+    }
+
+    /// Batch pending-invite lookup – used when a screen knows N invite ids
+    /// (e.g. resolving names for pending splits) and wants one query, not N.
+    func pendingInvites(ids: [UUID]) async throws -> [PendingFriendInvite] {
+        guard !ids.isEmpty else { return [] }
+        let unique = Array(Set(ids))
+        return try await client
+            .from("pending_friend_invites")
+            .select()
+            .in("id", values: unique.map(\.uuidString))
             .execute()
             .value
     }

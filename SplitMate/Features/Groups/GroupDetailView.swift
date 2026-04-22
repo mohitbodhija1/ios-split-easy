@@ -465,29 +465,28 @@ struct GroupDetailView: View {
         let es = ExpenseService(client: client)
         let fs = FriendService(client: client)
         do {
-            members = try await gs.members(groupId: group.id)
-            pendingMembers = try await gs.pendingMembers(groupId: group.id)
-            expenses = try await es.expenses(groupId: group.id)
-            var map: [UUID: Profile] = [:]
-            var pendingMap: [UUID: PendingFriendInvite] = [:]
-            for m in members {
-                if map[m.userId] == nil, let p = try? await fs.profile(id: m.userId) {
-                    map[m.userId] = p
-                }
-            }
-            for pending in pendingMembers {
-                if pendingMap[pending.pendingInviteId] == nil,
-                   let invite = try? await fs.pendingInvite(id: pending.pendingInviteId) {
-                    pendingMap[pending.pendingInviteId] = invite
-                }
-            }
-            for e in expenses {
-                if map[e.expense.paidBy] == nil, let p = try? await fs.profile(id: e.expense.paidBy) {
-                    map[e.expense.paidBy] = p
-                }
-            }
-            profiles = map
-            pendingInviteProfiles = pendingMap
+            // Three top-level fetches run in parallel.
+            async let membersFetch = gs.members(groupId: group.id)
+            async let pendingMembersFetch = gs.pendingMembers(groupId: group.id)
+            async let expensesFetch = es.expenses(groupId: group.id)
+            let (fetchedMembers, fetchedPending, fetchedExpenses) = try await (membersFetch, pendingMembersFetch, expensesFetch)
+
+            members = fetchedMembers
+            pendingMembers = fetchedPending
+            expenses = fetchedExpenses
+
+            // Collect every profile / invite id we need in one shot, then two
+            // batched `.in` queries instead of one per row.
+            var profileIds = Set<UUID>(fetchedMembers.map(\.userId))
+            for e in fetchedExpenses { profileIds.insert(e.expense.paidBy) }
+            let inviteIds = Set(fetchedPending.map(\.pendingInviteId))
+
+            async let profilesFetch = fs.profiles(ids: Array(profileIds))
+            async let invitesFetch = fs.pendingInvites(ids: Array(inviteIds))
+            let (profileList, inviteList) = try await (profilesFetch, invitesFetch)
+
+            profiles = Dictionary(uniqueKeysWithValues: profileList.map { ($0.id, $0) })
+            pendingInviteProfiles = Dictionary(uniqueKeysWithValues: inviteList.map { ($0.id, $0) })
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -690,15 +689,22 @@ private struct AddMemberSheet: View {
 
     private func loadCandidates() async {
         guard let uid = sessionStore.session?.user.id else { return }
+        let friendService = FriendService(client: sessionStore.client)
+        let groupService = GroupService(client: sessionStore.client)
         do {
-            let friendService = FriendService(client: sessionStore.client)
-            approvedFriends = try await friendService.acceptedFriends(for: uid)
-            pendingInvites = try await friendService.pendingInvites(for: uid)
-            let groupService = GroupService(client: sessionStore.client)
-            let members = try await groupService.members(groupId: group.id)
-            let pendingMembers = try await groupService.pendingMembers(groupId: group.id)
-            existingMemberIds = Set(members.map(\.userId))
-            existingPendingInviteIds = Set(pendingMembers.map(\.pendingInviteId))
+            // All four independent lookups in parallel; roughly 4x faster than
+            // the old sequential chain when the DB round trip dominates.
+            async let approved = friendService.acceptedFriends(for: uid)
+            async let invites = friendService.pendingInvites(for: uid)
+            async let members = groupService.members(groupId: group.id)
+            async let pendingMembers = groupService.pendingMembers(groupId: group.id)
+            let (fetchedApproved, fetchedInvites, fetchedMembers, fetchedPending) =
+                try await (approved, invites, members, pendingMembers)
+
+            approvedFriends = fetchedApproved
+            pendingInvites = fetchedInvites
+            existingMemberIds = Set(fetchedMembers.map(\.userId))
+            existingPendingInviteIds = Set(fetchedPending.map(\.pendingInviteId))
         } catch {
             errorMessage = error.localizedDescription
         }

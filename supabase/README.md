@@ -8,9 +8,9 @@ From this directory (with [Supabase CLI](https://supabase.com/docs/guides/cli) i
 supabase db push
 ```
 
-Or paste [`migrations/20260418120000_initial_schema.sql`](migrations/20260418120000_initial_schema.sql) into the Supabase SQL Editor and run it once.
+Or paste [`migrations/20260422100000_splitmate_full_schema.sql`](migrations/20260422100000_splitmate_full_schema.sql) into the Supabase SQL Editor and run it **once on an empty project** (new database).
 
-If you already applied an older version of that migration and **creating a group fails with RLS on `groups`**, run [`migrations/20260419120000_fix_groups_select_rls.sql`](migrations/20260419120000_fix_groups_select_rls.sql) once (or `supabase db push` so all pending migrations apply).
+Older incremental migration files were removed in favor of this single file. If you still have an existing Supabase project that already ran the old migrations, keep using that project’s migration history, or create a new project and apply only this file there.
 
 ## Deploy Edge Function
 

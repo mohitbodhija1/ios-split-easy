@@ -474,29 +474,33 @@ struct AddExpenseView: View {
         let gs = GroupService(client: sessionStore.client)
         let fs = FriendService(client: sessionStore.client)
         do {
-            members = try await gs.members(groupId: group.id)
-            pendingMembers = try await gs.pendingMembers(groupId: group.id)
-            var map: [UUID: Profile] = [:]
-            var pendingMap: [UUID: PendingFriendInvite] = [:]
-            for m in members {
-                if let p = try? await fs.profile(id: m.userId) {
-                    map[m.userId] = p
-                }
-            }
-            for pending in pendingMembers {
-                if pendingMap[pending.pendingInviteId] == nil,
-                   let invite = try? await fs.pendingInvite(id: pending.pendingInviteId) {
-                    pendingMap[pending.pendingInviteId] = invite
-                }
-            }
-            profiles = map
-            pendingInviteProfiles = pendingMap
+            // Step 1: fetch membership rows in parallel so we know which ids
+            // we actually need to resolve. Two round trips instead of two +
+            // N + M sequential ones.
+            async let membersFetch = gs.members(groupId: group.id)
+            async let pendingMembersFetch = gs.pendingMembers(groupId: group.id)
+            let (fetchedMembers, fetchedPending) = try await (membersFetch, pendingMembersFetch)
+
+            members = fetchedMembers
+            pendingMembers = fetchedPending
+
+            // Step 2: two batched `IN (...)` queries in parallel – regardless
+            // of how many members or pending invites the group has.
+            let memberIds = fetchedMembers.map(\.userId)
+            let inviteIds = fetchedPending.map(\.pendingInviteId)
+            async let profilesFetch = fs.profiles(ids: memberIds)
+            async let invitesFetch = fs.pendingInvites(ids: inviteIds)
+            let (profileList, inviteList) = try await (profilesFetch, invitesFetch)
+
+            profiles = Dictionary(uniqueKeysWithValues: profileList.map { ($0.id, $0) })
+            pendingInviteProfiles = Dictionary(uniqueKeysWithValues: inviteList.map { ($0.id, $0) })
+
             selectAllParticipants()
             let me = sessionStore.session?.user.id
-            if let me, members.contains(where: { $0.userId == me }) {
+            if let me, fetchedMembers.contains(where: { $0.userId == me }) {
                 paidByUserId = me
             } else {
-                paidByUserId = members.first?.userId
+                paidByUserId = fetchedMembers.first?.userId
             }
         } catch {
             errorMessage = error.localizedDescription

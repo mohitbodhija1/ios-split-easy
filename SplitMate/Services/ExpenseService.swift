@@ -4,32 +4,33 @@ import Supabase
 struct ExpenseService {
     let client: SupabaseClient
 
+    /// Single round-trip: PostgREST embeds `splits` and `pending_splits` via
+    /// foreign-key relationships, replacing the old 1 + 2·N query pattern.
     func expenses(groupId: UUID) async throws -> [ExpenseWithSplits] {
-        let expenses: [ExpenseRecord] = try await client
+        let rows: [ExpenseWithSplitsDTO] = try await client
             .from("expenses")
-            .select()
+            .select("*, splits(*), pending_splits(*)")
             .eq("group_id", value: groupId.uuidString)
             .order("created_at", ascending: false)
             .execute()
             .value
+        return rows.map(\.asModel)
+    }
 
-        var out: [ExpenseWithSplits] = []
-        for e in expenses {
-            let splits: [SplitRecord] = try await client
-                .from("splits")
-                .select()
-                .eq("expense_id", value: e.id.uuidString)
-                .execute()
-                .value
-            let pendingSplits: [PendingSplitRecord] = (try? await client
-                .from("pending_splits")
-                .select()
-                .eq("expense_id", value: e.id.uuidString)
-                .execute()
-                .value) ?? []
-            out.append(ExpenseWithSplits(expense: e, splits: splits, pendingSplits: pendingSplits))
+    /// Load multiple groups' expenses in parallel, then flatten. Keeps a single
+    /// round trip per group while avoiding a client-side for-await loop.
+    func expenses(groupIds: [UUID]) async throws -> [UUID: [ExpenseWithSplits]] {
+        guard !groupIds.isEmpty else { return [:] }
+        return try await withThrowingTaskGroup(of: (UUID, [ExpenseWithSplits]).self) { taskGroup in
+            for id in groupIds {
+                taskGroup.addTask { (id, try await self.expenses(groupId: id)) }
+            }
+            var out: [UUID: [ExpenseWithSplits]] = [:]
+            for try await (id, exps) in taskGroup {
+                out[id] = exps
+            }
+            return out
         }
-        return out
     }
 
     /// Inserts expense (paid_by must be current user per RLS) and split rows; validates totals.
@@ -165,5 +166,45 @@ private struct NewPendingSplitRow: Encodable {
         case expenseId = "expense_id"
         case pendingInviteId = "pending_invite_id"
         case amountOwed = "amount_owed"
+    }
+}
+
+/// Decodes the flat PostgREST response shape produced by
+/// `select("*, splits(*), pending_splits(*)")` and maps it into the
+/// nested `ExpenseWithSplits` model used by the views.
+private struct ExpenseWithSplitsDTO: Decodable {
+    let id: UUID
+    let groupId: UUID
+    let paidBy: UUID
+    let amount: Double
+    let description: String
+    let expenseDate: String
+    let createdAt: Date?
+    let splits: [SplitRecord]
+    let pendingSplits: [PendingSplitRecord]
+
+    enum CodingKeys: String, CodingKey {
+        case id, amount, description, splits
+        case groupId = "group_id"
+        case paidBy = "paid_by"
+        case expenseDate = "expense_date"
+        case createdAt = "created_at"
+        case pendingSplits = "pending_splits"
+    }
+
+    var asModel: ExpenseWithSplits {
+        ExpenseWithSplits(
+            expense: ExpenseRecord(
+                id: id,
+                groupId: groupId,
+                paidBy: paidBy,
+                amount: amount,
+                description: description,
+                expenseDate: expenseDate,
+                createdAt: createdAt
+            ),
+            splits: splits,
+            pendingSplits: pendingSplits
+        )
     }
 }

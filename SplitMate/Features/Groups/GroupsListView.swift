@@ -245,17 +245,30 @@ struct GroupsListView: View {
         let gs = GroupService(client: sessionStore.client)
         let es = ExpenseService(client: sessionStore.client)
         do {
-            groups = try await gs.groups(for: uid)
+            let fetchedGroups = try await gs.groups(for: uid)
+            groups = fetchedGroups
+            guard !fetchedGroups.isEmpty else {
+                summaries = [:]
+                return
+            }
+
+            let ids = fetchedGroups.map(\.id)
+
+            // Three independent batch queries in parallel; each replaces an
+            // N-call inner loop with a single round trip.
+            async let membersByGroup = gs.members(for: ids)
+            async let pendingByGroup = (try? await gs.pendingMembers(for: ids)) ?? [:]
+            async let expensesByGroup = es.expenses(groupIds: ids)
+
+            let (mems, pending, exps) = try await (membersByGroup, pendingByGroup, expensesByGroup)
+
             var map: [UUID: GroupListSummary] = [:]
-            for g in groups {
-                let mems = try await gs.members(groupId: g.id)
-                let pending = (try? await gs.pendingMembers(groupId: g.id)) ?? []
-                let exps = try await es.expenses(groupId: g.id)
-                let net = groupNetBalance(currentUserId: uid, expenses: exps)
+            for g in fetchedGroups {
+                let groupExps = exps[g.id] ?? []
                 map[g.id] = GroupListSummary(
-                    memberCount: mems.count + pending.count,
-                    expenseCount: exps.count,
-                    netForCurrentUser: net
+                    memberCount: (mems[g.id]?.count ?? 0) + (pending[g.id]?.count ?? 0),
+                    expenseCount: groupExps.count,
+                    netForCurrentUser: groupNetBalance(currentUserId: uid, expenses: groupExps)
                 )
             }
             summaries = map

@@ -17,12 +17,14 @@ struct AppRootView: View {
                     openAuthWithSignUp = signUp
                     hasCompletedOnboarding = true
                 }
-                .preferredColorScheme(.light)
             } else {
                 AuthContainerView(preferSignUp: openAuthWithSignUp)
                     .id(openAuthWithSignUp)
             }
         }
+        // Lock the whole app to light mode so system-styled screens (Settings
+        // Form, sheets, alerts) match the hand-rolled light UI everywhere else.
+        .preferredColorScheme(.light)
         .animation(.default, value: sessionStore.session?.user.id)
         .animation(.default, value: hasCompletedOnboarding)
     }

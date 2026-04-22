@@ -4,30 +4,14 @@ import Supabase
 struct GroupService {
     let client: SupabaseClient
 
-    func myGroupIds(userId: UUID) async throws -> [UUID] {
-        struct Row: Decodable {
-            let groupId: UUID
-            enum CodingKeys: String, CodingKey {
-                case groupId = "group_id"
-            }
-        }
-        let rows: [Row] = try await client
-            .from("group_members")
-            .select("group_id")
-            .eq("user_id", value: userId.uuidString)
-            .execute()
-            .value
-        return rows.map(\.groupId)
-    }
-
+    /// Single PostgREST call: inner-join `group_members` so only groups the
+    /// user is a member of are returned. Replaces the old two-trip pattern
+    /// that also built an unbounded `or(id.eq.x,id.eq.y,…)` filter.
     func groups(for userId: UUID) async throws -> [GroupRecord] {
-        let ids = try await myGroupIds(userId: userId)
-        guard !ids.isEmpty else { return [] }
-        let orFilter = ids.map { "id.eq.\($0.uuidString)" }.joined(separator: ",")
-        return try await client
+        try await client
             .from("groups")
-            .select()
-            .or(orFilter)
+            .select("*, group_members!inner(user_id)")
+            .eq("group_members.user_id", value: userId.uuidString)
             .order("created_at", ascending: false)
             .execute()
             .value
@@ -42,6 +26,23 @@ struct GroupService {
             .value
     }
 
+    /// Batched variant used by list screens so they can resolve membership for
+    /// many groups in a single round trip instead of N.
+    func members(for groupIds: [UUID]) async throws -> [UUID: [GroupMemberRow]] {
+        guard !groupIds.isEmpty else { return [:] }
+        let rows: [GroupMemberRow] = try await client
+            .from("group_members")
+            .select()
+            .in("group_id", values: groupIds.map(\.uuidString))
+            .execute()
+            .value
+        var out: [UUID: [GroupMemberRow]] = [:]
+        for row in rows {
+            out[row.groupId, default: []].append(row)
+        }
+        return out
+    }
+
     func pendingMembers(groupId: UUID) async throws -> [PendingGroupMemberRow] {
         try await client
             .from("pending_group_members")
@@ -50,6 +51,22 @@ struct GroupService {
             .order("created_at", ascending: false)
             .execute()
             .value
+    }
+
+    func pendingMembers(for groupIds: [UUID]) async throws -> [UUID: [PendingGroupMemberRow]] {
+        guard !groupIds.isEmpty else { return [:] }
+        let rows: [PendingGroupMemberRow] = try await client
+            .from("pending_group_members")
+            .select()
+            .in("group_id", values: groupIds.map(\.uuidString))
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+        var out: [UUID: [PendingGroupMemberRow]] = [:]
+        for row in rows {
+            out[row.groupId, default: []].append(row)
+        }
+        return out
     }
 
     /// Creates a group and adds `creatorId` as the first member.
@@ -92,28 +109,48 @@ struct GroupService {
     }
 
     /// Hidden pair group for 1:1 splitting (both users are members).
+    ///
+    /// Previous implementation issued 1 + N queries (one per pair group).
+    /// Now: 1 query for my pair groups, 1 query for all their members; then
+    /// resolution happens client-side in O(M) where M is total member rows.
     func pairGroup(for userId: UUID, friendId: UUID) async throws -> GroupRecord? {
-        let mine = try await groups(for: userId)
-        for g in mine where g.groupType == "pair" {
-            let mems = try await members(groupId: g.id)
-            let ids = Set(mems.map(\.userId))
-            if ids.contains(friendId), ids.contains(userId) {
-                return g
-            }
+        let myPairGroups: [GroupRecord] = try await client
+            .from("groups")
+            .select("*, group_members!inner(user_id)")
+            .eq("group_members.user_id", value: userId.uuidString)
+            .eq("group_type", value: "pair")
+            .execute()
+            .value
+        guard !myPairGroups.isEmpty else { return nil }
+
+        let membersByGroup = try await members(for: myPairGroups.map(\.id))
+        return myPairGroups.first { g in
+            let ids = Set((membersByGroup[g.id] ?? []).map(\.userId))
+            return ids.contains(friendId) && ids.contains(userId)
         }
-        return nil
     }
 
     /// Finds a group created by the user that already contains this pending invite.
+    ///
+    /// Replaces the 1 + N pattern with a single `pending_group_members` query
+    /// followed by a single-row group fetch.
     func pendingInviteGroup(for userId: UUID, pendingInviteId: UUID) async throws -> GroupRecord? {
-        let mine = try await groups(for: userId)
-        for g in mine {
-            let pending = try await pendingMembers(groupId: g.id)
-            if pending.contains(where: { $0.pendingInviteId == pendingInviteId }) {
-                return g
-            }
-        }
-        return nil
+        let rows: [PendingGroupMemberRow] = try await client
+            .from("pending_group_members")
+            .select()
+            .eq("pending_invite_id", value: pendingInviteId.uuidString)
+            .eq("added_by", value: userId.uuidString)
+            .limit(1)
+            .execute()
+            .value
+        guard let first = rows.first else { return nil }
+        return try await client
+            .from("groups")
+            .select()
+            .eq("id", value: first.groupId.uuidString)
+            .single()
+            .execute()
+            .value
     }
 
     /// Creates (or returns existing) group dedicated to a pending friend so expenses can be tracked.

@@ -468,45 +468,59 @@ struct FriendsView: View {
         guard let uid = sessionStore.session?.user.id else { return }
         let fs = FriendService(client: sessionStore.client)
         do {
-            incoming = try await fs.incomingPending(for: uid)
-            friends = try await fs.acceptedFriends(for: uid)
-            do {
-                pendingInvites = try await fs.pendingInvites(for: uid)
-            } catch {
-                pendingInvites = []
-            }
-            var map: [UUID: Profile] = [:]
-            for r in incoming {
-                if let p = try? await fs.profile(id: r.fromUser) {
-                    map[r.fromUser] = p
-                }
-            }
-            incomingProfiles = map
-            friendNetBalances = try await loadFriendBalances(currentUserId: uid, friends: friends)
-            pendingInviteTotals = try await loadPendingInviteTotals(currentUserId: uid, pendingInvites: pendingInvites)
+            // First wave: three independent top-level fetches in parallel.
+            async let incomingFetch = fs.incomingPending(for: uid)
+            async let friendsFetch = fs.acceptedFriends(for: uid)
+            async let invitesFetch = (try? await fs.pendingInvites(for: uid)) ?? []
+
+            let (fetchedIncoming, fetchedFriends, fetchedInvites) = try await (incomingFetch, friendsFetch, invitesFetch)
+            incoming = fetchedIncoming
+            friends = fetchedFriends
+            pendingInvites = fetchedInvites
+
+            // Second wave: batched profile lookup for "incoming" senders +
+            // parallel balance / totals computation.
+            async let profilesFetch = fs.profiles(ids: fetchedIncoming.map(\.fromUser))
+            async let balancesFetch = loadFriendBalances(currentUserId: uid, friends: fetchedFriends)
+            async let totalsFetch = loadPendingInviteTotals(currentUserId: uid, pendingInvites: fetchedInvites)
+
+            let (profileList, balances, totals) = try await (profilesFetch, balancesFetch, totalsFetch)
+            incomingProfiles = Dictionary(uniqueKeysWithValues: profileList.map { ($0.id, $0) })
+            friendNetBalances = balances
+            pendingInviteTotals = totals
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
     private func loadFriendBalances(currentUserId: UUID, friends: [Profile]) async throws -> [UUID: Double] {
+        guard !friends.isEmpty else { return [:] }
         let groupService = GroupService(client: sessionStore.client)
         let expenseService = ExpenseService(client: sessionStore.client)
-        var balances: [UUID: Double] = [:]
 
-        for friend in friends {
-            guard let pair = try await groupService.pairGroup(for: currentUserId, friendId: friend.id) else {
-                balances[friend.id] = 0
-                continue
+        // Fan out per-friend pair-group + expense resolution in parallel so
+        // the total wall time is `max` of the slowest friend instead of
+        // `sum` of all friends.
+        return try await withThrowingTaskGroup(of: (UUID, Double).self) { taskGroup in
+            for friend in friends {
+                taskGroup.addTask {
+                    guard let pair = try await groupService.pairGroup(for: currentUserId, friendId: friend.id) else {
+                        return (friend.id, 0)
+                    }
+                    let expenses = try await expenseService.expenses(groupId: pair.id)
+                    return (friend.id, pairNetBalance(
+                        currentUserId: currentUserId,
+                        friendId: friend.id,
+                        expenses: expenses
+                    ))
+                }
             }
-            let expenses = try await expenseService.expenses(groupId: pair.id)
-            balances[friend.id] = pairNetBalance(
-                currentUserId: currentUserId,
-                friendId: friend.id,
-                expenses: expenses
-            )
+            var out: [UUID: Double] = [:]
+            for try await (id, net) in taskGroup {
+                out[id] = net
+            }
+            return out
         }
-        return balances
     }
 
     private func loadPendingInviteTotals(
@@ -521,11 +535,15 @@ struct FriendsView: View {
 
         let inviteIdSet = Set(pendingInvites.map(\.id))
         let groups = try await GroupService(client: sessionStore.client).groups(for: currentUserId)
-        let expenseService = ExpenseService(client: sessionStore.client)
+        guard !groups.isEmpty else { return totals }
+
+        // Fetch every group's expenses in parallel via one request per group
+        // that each already collapses splits+pending_splits into a single query.
+        let expensesByGroup = try await ExpenseService(client: sessionStore.client)
+            .expenses(groupIds: groups.map(\.id))
 
         for group in groups {
-            let expenses = try await expenseService.expenses(groupId: group.id)
-            for item in expenses {
+            for item in expensesByGroup[group.id] ?? [] {
                 for pendingSplit in item.pendingSplits where inviteIdSet.contains(pendingSplit.pendingInviteId) {
                     totals[pendingSplit.pendingInviteId, default: 0] += pendingSplit.amountOwed
                 }
@@ -1239,22 +1257,28 @@ private struct FriendExpenseDetailView: View {
             let gs = GroupService(client: sessionStore.client)
             let es = ExpenseService(client: sessionStore.client)
             let myGroups = try await gs.groups(for: uid)
-            var shared: [GroupRecord] = []
-            for g in myGroups {
-                let mems = try await gs.members(groupId: g.id)
-                let ids = Set(mems.map(\.userId))
-                if ids.contains(friend.id), ids.contains(uid) {
-                    shared.append(g)
-                }
+            guard !myGroups.isEmpty else {
+                rows = []; sharedGroupNames = []; sharedGroupsCount = 0
+                totalTogether = 0; netBalance = 0
+                return
+            }
+
+            // One batched query for all group memberships, one batched parallel
+            // fan-out for expenses.
+            let membersByGroup = try await gs.members(for: myGroups.map(\.id))
+            let shared = myGroups.filter { g in
+                let ids = Set((membersByGroup[g.id] ?? []).map(\.userId))
+                return ids.contains(friend.id) && ids.contains(uid)
             }
             sharedGroupsCount = shared.count
             sharedGroupNames = shared.map(\.name).sorted()
 
+            let expensesByGroup = try await es.expenses(groupIds: shared.map(\.id))
             var combined: [FriendExpenseRow] = []
             var total: Double = 0
             var netSum = 0.0
             for g in shared {
-                let exps = try await es.expenses(groupId: g.id)
+                let exps = expensesByGroup[g.id] ?? []
                 netSum += pairNetBalance(currentUserId: uid, friendId: friend.id, expenses: exps)
                 for item in exps {
                     combined.append(FriendExpenseRow(item: item, groupName: g.name))
@@ -1821,12 +1845,19 @@ private struct PendingFriendExpenseDetailView: View {
             let gs = GroupService(client: sessionStore.client)
             let es = ExpenseService(client: sessionStore.client)
             let groups = try await gs.groups(for: uid)
+            guard !groups.isEmpty else {
+                items = []; totalPendingShare = 0
+                return
+            }
+
+            // Parallel per-group fetch; each fetch already collapses
+            // splits+pending_splits via embedding.
+            let expensesByGroup = try await es.expenses(groupIds: groups.map(\.id))
 
             var loadedItems: [PendingInviteExpenseItem] = []
             var total = 0.0
             for group in groups {
-                let expenses = try await es.expenses(groupId: group.id)
-                for expense in expenses {
+                for expense in expensesByGroup[group.id] ?? [] {
                     for pendingSplit in expense.pendingSplits where pendingSplit.pendingInviteId == invite.id {
                         loadedItems.append(
                             PendingInviteExpenseItem(

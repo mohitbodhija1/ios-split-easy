@@ -29,9 +29,26 @@ final class SessionStore {
                 self.session = session
                 self.isBootstrapping = false
             }
-            if session != nil {
+            if let session {
                 await PushCoordinator.shared.onSignedIn()
+                warmUpDatabase(userId: session.user.id)
             }
+        }
+    }
+
+    /// Fires a tiny, throwaway PostgREST request right after sign-in so the
+    /// very next user-triggered query isn't paying the full cold-start cost
+    /// (DNS + TLS handshake + Supabase pooler wake-up + PostgREST plan cache).
+    /// It uses the authenticated session, so RLS sees the correct `auth.uid()`.
+    private nonisolated func warmUpDatabase(userId: UUID) {
+        let client = self.client
+        Task.detached(priority: .utility) {
+            _ = try? await client
+                .from("profiles")
+                .select("id")
+                .eq("id", value: userId.uuidString)
+                .limit(1)
+                .execute()
         }
     }
 
