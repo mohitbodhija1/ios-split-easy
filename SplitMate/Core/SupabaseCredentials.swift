@@ -3,6 +3,7 @@ import Foundation
 /// Supabase URL and anon key are read in this order:
 /// 1. Process environment (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) — use **Xcode → Scheme → Edit Scheme → Run → Environment Variables**
 /// 2. Info.plist entries with the same keys (if you add them under target **Info** or build settings)
+/// 3. `SupabaseBakedSecrets`, written by `ci_scripts/ci_post_clone.sh` during Xcode Cloud builds
 ///
 /// Do not ship placeholder values; DNS will fail with "hostname could not be found" (-1003).
 enum SupabaseCredentials {
@@ -12,11 +13,13 @@ enum SupabaseCredentials {
     static let validationError: String? = {
         let rawURL = Self.string(
             envKey: "SUPABASE_URL",
-            infoPlistKey: "SUPABASE_URL"
+            infoPlistKey: "SUPABASE_URL",
+            baked: SupabaseBakedSecrets.url
         )
         let rawKey = Self.string(
             envKey: "SUPABASE_ANON_KEY",
-            infoPlistKey: "SUPABASE_ANON_KEY"
+            infoPlistKey: "SUPABASE_ANON_KEY",
+            baked: SupabaseBakedSecrets.anonKey
         )
         let trimmedURL = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedKey = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -44,7 +47,8 @@ enum SupabaseCredentials {
     static let supabaseURL: URL = {
         let raw = Self.string(
             envKey: "SUPABASE_URL",
-            infoPlistKey: "SUPABASE_URL"
+            infoPlistKey: "SUPABASE_URL",
+            baked: SupabaseBakedSecrets.url
         )
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard Self.isValidSupabaseURL(trimmed), let url = URL(string: trimmed) else {
@@ -56,18 +60,23 @@ enum SupabaseCredentials {
     static let anonKey: String = {
         let raw = Self.string(
             envKey: "SUPABASE_ANON_KEY",
-            infoPlistKey: "SUPABASE_ANON_KEY"
+            infoPlistKey: "SUPABASE_ANON_KEY",
+            baked: SupabaseBakedSecrets.anonKey
         )
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         return Self.isValidAnonKey(trimmed) ? trimmed : fallbackAnonKey
     }()
 
-    private static func string(envKey: String, infoPlistKey: String) -> String {
+    private static func string(envKey: String, infoPlistKey: String, baked: String) -> String {
         if let v = ProcessInfo.processInfo.environment[envKey], !v.isEmpty {
             return v
         }
         if let v = Bundle.main.object(forInfoDictionaryKey: infoPlistKey) as? String, !v.isEmpty {
             return v
+        }
+        let trimmedBaked = baked.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedBaked.isEmpty {
+            return trimmedBaked
         }
         return ""
     }
