@@ -12,11 +12,28 @@
 
 /* Begin PBXFileReference section */
 		5F36BFD72F93BC29000CC0CB /* Splitmate: Bill & Expenses.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Splitmate: Bill & Expenses.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A171C0013A9B0001001A9B01 /* SplitMate/Config/Common.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = SplitMate/Config/Common.xcconfig; sourceTree = "<group>"; };
+		A171C0023A9B0001001A9B01 /* SplitMate/Config/Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = SplitMate/Config/Debug.xcconfig; sourceTree = "<group>"; };
+		A171C0033A9B0001001A9B01 /* SplitMate/Config/Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = SplitMate/Config/Release.xcconfig; sourceTree = "<group>"; };
+		A171C0043A9B0001001A9B01 /* SplitMate/Config/Secrets.template.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = SplitMate/Config/Secrets.template.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5FCAF7252F9883E300E0F587 /* Exceptions for "SplitMate" folder in "SplitMate" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Untitled.swift,
+			);
+			target = 5F36BFD62F93BC29000CC0CB /* SplitMate */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		5F36BFD92F93BC29000CC0CB /* SplitMate */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5FCAF7252F9883E300E0F587 /* Exceptions for "SplitMate" folder in "SplitMate" target */,
+			);
 			path = SplitMate;
 			sourceTree = "<group>";
 		};
@@ -38,6 +55,10 @@
 			isa = PBXGroup;
 			children = (
 				5F36BFD92F93BC29000CC0CB /* SplitMate */,
+				A171C0013A9B0001001A9B01 /* SplitMate/Config/Common.xcconfig */,
+				A171C0023A9B0001001A9B01 /* SplitMate/Config/Debug.xcconfig */,
+				A171C0033A9B0001001A9B01 /* SplitMate/Config/Release.xcconfig */,
+				A171C0043A9B0001001A9B01 /* SplitMate/Config/Secrets.template.xcconfig */,
 				5F36BFD82F93BC29000CC0CB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -255,15 +276,17 @@
 		};
 		5F36BFE32F93BC2A000CC0CB /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A171C0023A9B0001001A9B01 /* SplitMate/Config/Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SplitMate/SplitMate.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = KFYZTB84NM;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -274,10 +297,12 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
+				NEW_SETTING = "";
 				PRODUCT_BUNDLE_IDENTIFIER = bodhija.SplitMate;
 				PRODUCT_NAME = "Splitmate: Bill & Expenses";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPABASE_URL = "https://huajtrqwayceybpufhfr.supabase.co";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -289,15 +314,17 @@
 		};
 		5F36BFE42F93BC2A000CC0CB /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A171C0033A9B0001001A9B01 /* SplitMate/Config/Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = SplitMate/SplitMate.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = KFYZTB84NM;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -308,10 +335,12 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
+				NEW_SETTING = "";
 				PRODUCT_BUNDLE_IDENTIFIER = bodhija.SplitMate;
 				PRODUCT_NAME = "Splitmate: Bill & Expenses";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPABASE_URL = "https://huajtrqwayceybpufhfr.supabase.co";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;

@@ -6,29 +6,49 @@ import Foundation
 ///
 /// Do not ship placeholder values; DNS will fail with "hostname could not be found" (-1003).
 enum SupabaseCredentials {
+    private static let fallbackURL = URL(string: "https://invalid.supabase.co")!
+    private static let fallbackAnonKey = "invalid-supabase-anon-key"
+
+    static let validationError: String? = {
+        let rawURL = Self.string(
+            envKey: "SUPABASE_URL",
+            infoPlistKey: "SUPABASE_URL"
+        )
+        let rawKey = Self.string(
+            envKey: "SUPABASE_ANON_KEY",
+            infoPlistKey: "SUPABASE_ANON_KEY"
+        )
+        let trimmedURL = rawURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedKey = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let isValidURL = Self.isValidSupabaseURL(trimmedURL)
+        let isValidKey = Self.isValidAnonKey(trimmedKey)
+        guard !isValidURL || !isValidKey else { return nil }
+
+        let currentURL = trimmedURL.isEmpty ? "(empty)" : trimmedURL
+        return """
+        Supabase is not configured correctly.
+
+        Current values:
+          SUPABASE_URL = \(currentURL)
+          SUPABASE_ANON_KEY = \(trimmedKey.isEmpty ? "(empty)" : "(set, \(trimmedKey.count) chars)")
+
+        Fix:
+        1) Xcode → Product → Scheme → Edit Scheme → Run → Environment Variables
+           SUPABASE_URL = https://<your-project-ref>.supabase.co
+           SUPABASE_ANON_KEY = <anon key from Supabase Dashboard → Project Settings → API>
+        2) Or add the same keys to app Info.plist.
+        """
+    }()
+
     static let supabaseURL: URL = {
         let raw = Self.string(
             envKey: "SUPABASE_URL",
             infoPlistKey: "SUPABASE_URL"
         )
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: trimmed),
-              let host = url.host,
-              host.hasSuffix("supabase.co"),
-              !Self.isPlaceholderSupabaseHost(host),
-              url.scheme == "https"
-        else {
-            preconditionFailure(
-                """
-                Invalid or missing SUPABASE_URL (got: \(raw.isEmpty ? "(empty)" : raw)).
-
-                In Xcode: Product → Scheme → Edit Scheme → Run → Environment Variables, add:
-                  SUPABASE_URL = https://<your-project-ref>.supabase.co
-                  SUPABASE_ANON_KEY = <anon key from Supabase Dashboard → Project Settings → API>
-
-                Or add the same keys to your app Info.plist.
-                """
-            )
+        guard Self.isValidSupabaseURL(trimmed), let url = URL(string: trimmed) else {
+            return fallbackURL
         }
         return url
     }()
@@ -39,19 +59,7 @@ enum SupabaseCredentials {
             infoPlistKey: "SUPABASE_ANON_KEY"
         )
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 20,
-              !Self.isPlaceholderAnonKey(trimmed)
-        else {
-            preconditionFailure(
-                """
-                Invalid or missing SUPABASE_ANON_KEY.
-
-                In Xcode: Scheme → Run → Environment Variables, add SUPABASE_ANON_KEY from
-                Supabase Dashboard → Project Settings → API → Project API keys → anon public.
-                """
-            )
-        }
-        return trimmed
+        return Self.isValidAnonKey(trimmed) ? trimmed : fallbackAnonKey
     }()
 
     private static func string(envKey: String, infoPlistKey: String) -> String {
@@ -62,6 +70,22 @@ enum SupabaseCredentials {
             return v
         }
         return ""
+    }
+
+    private static func isValidSupabaseURL(_ raw: String) -> Bool {
+        guard let url = URL(string: raw),
+              let host = url.host,
+              host.hasSuffix("supabase.co"),
+              !Self.isPlaceholderSupabaseHost(host),
+              url.scheme == "https"
+        else {
+            return false
+        }
+        return true
+    }
+
+    private static func isValidAnonKey(_ raw: String) -> Bool {
+        raw.count >= 20 && !Self.isPlaceholderAnonKey(raw)
     }
 
     private static func isPlaceholderSupabaseHost(_ host: String) -> Bool {

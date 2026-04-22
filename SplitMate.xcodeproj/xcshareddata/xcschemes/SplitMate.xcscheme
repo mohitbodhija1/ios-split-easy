@@ -53,13 +53,13 @@
       </BuildableProductRunnable>
       <EnvironmentVariables>
          <EnvironmentVariable
-            key = "SUPABASE_URL"
-            value = "https://huajtrqwayceybpufhfr.supabase.co"
+            key = "SUPABASE_ANON_KEY"
+            value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1YWp0cnF3YXljZXlicHVmaGZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MTU3MjgsImV4cCI6MjA5MjA5MTcyOH0.58lygIdUJMZQDgd9VGCnhMRnNrpDdPOfz8RqpIlQRHk"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
-            key = "SUPABASE_ANON_KEY"
-            value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1YWp0cnF3YXljZXlicHVmaGZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MTU3MjgsImV4cCI6MjA5MjA5MTcyOH0.58lygIdUJMZQDgd9VGCnhMRnNrpDdPOfz8RqpIlQRHk"
+            key = "SUPABASE_URL"
+            value = "https://huajtrqwayceybpufhfr.supabase.co"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>

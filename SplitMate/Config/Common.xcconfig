@@ -1,0 +1,11 @@
+// Shared build settings for all configurations.
+// Do not put real secrets here. Keep them in Secrets.local.xcconfig.
+
+SLASH = /
+
+// Pull local machine secrets when present (works for Debug + Release/TestFlight archives).
+#include? "Secrets.local.xcconfig"
+
+// Expose build settings as generated Info.plist keys.
+INFOPLIST_KEY_SUPABASE_URL = $(SUPABASE_URL)
+INFOPLIST_KEY_SUPABASE_ANON_KEY = $(SUPABASE_ANON_KEY)

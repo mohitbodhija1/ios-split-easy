@@ -14,6 +14,11 @@ final class SessionStore {
     private var authListenerTask: Task<Void, Never>?
 
     init() {
+        if let configError = SupabaseCredentials.validationError {
+            authError = configError
+            isBootstrapping = false
+            return
+        }
         authListenerTask = Task { await self.listenAuth() }
     }
 
