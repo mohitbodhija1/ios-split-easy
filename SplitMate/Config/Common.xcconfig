@@ -9,3 +9,7 @@ SLASH = /
 // Expose build settings as generated Info.plist keys.
 INFOPLIST_KEY_SUPABASE_URL = $(SUPABASE_URL)
 INFOPLIST_KEY_SUPABASE_ANON_KEY = $(SUPABASE_ANON_KEY)
+
+// App Store export compliance: app does not implement proprietary or custom non-exempt crypto
+// (only standard TLS via system APIs). Declared in Info.plist so you are not prompted each submission.
+INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO
